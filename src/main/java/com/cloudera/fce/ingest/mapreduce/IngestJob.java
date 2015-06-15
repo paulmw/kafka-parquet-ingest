@@ -37,7 +37,8 @@ public class IngestJob implements Tool {
         }
 
         conf.set("mapreduce.map.java.opts", "-Xmx8G");
-        conf.set("mapreduce.map.memory.mb", "7500   ");
+        conf.set("mapreduce.map.memory.mb", "8500");
+        conf.set("mapreduce.task.timeout", "0");
 
         Job job = Job.getInstance(conf, "Kafka Ingester");
 

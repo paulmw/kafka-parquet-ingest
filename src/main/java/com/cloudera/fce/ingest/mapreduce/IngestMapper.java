@@ -28,7 +28,7 @@ public class IngestMapper extends Mapper<IntWritable, NullWritable, IntWritable,
     }
 
     @Override
-    protected void map(IntWritable key, NullWritable value, Context context) throws IOException, InterruptedException {
+    protected void map(IntWritable key, NullWritable value, Mapper.Context context) throws IOException, InterruptedException {
         try {
             Ingester ingester = new Ingester(properties);
             ingester.run(context);

@@ -80,6 +80,9 @@ public class Ingester {
             public void onRoll() {
                 consumer.commitOffsets();
                 System.out.println("Rolling. Consumed " + count + " messages.");
+                if(context != null) {
+                    context.setStatus("Rolling. Consumed " + count + " messages.");
+                }
             }
         };
 
@@ -96,7 +99,11 @@ public class Ingester {
 
     private int count;
 
+    private Context context;
+
     public void run(Context context) {
+        this.context = context;
+
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
         topicCountMap.put(topic, new Integer(1));
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
@@ -112,9 +119,9 @@ public class Ingester {
                 count++;
                 if (count % 100000 == 0) {
                     System.out.println("Read " + count + " events into Parquet.");
-                }
-                if(context != null) {
-                    context.getCounter("Ingest", "Events read").increment(1);
+                    if(context != null) {
+                        context.setStatus("Read " + count + " events into Parquet.");
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
