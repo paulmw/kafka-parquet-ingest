@@ -31,7 +31,7 @@ public class IngestMapper extends Mapper<IntWritable, NullWritable, IntWritable,
     protected void map(IntWritable key, NullWritable value, Context context) throws IOException, InterruptedException {
         try {
             Ingester ingester = new Ingester(properties);
-            ingester.run();
+            ingester.run(context);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

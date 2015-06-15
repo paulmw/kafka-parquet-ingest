@@ -11,9 +11,12 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 
-import java.io.File;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +50,7 @@ public class Ingester {
         System.out.println(properties);
 
         Ingester ingester = new Ingester(properties);
-        ingester.run();
+        ingester.run(null);
     }
 
     public Ingester(Properties properties) throws Exception {
@@ -58,7 +61,11 @@ public class Ingester {
         ConsumerConfig consumerConfig = new ConsumerConfig(properties);
         consumer = Consumer.createJavaConsumerConnector(consumerConfig);
 
-        schema = new Schema.Parser().parse(new File((String) properties.get("ingester.schemafile")));
+        FileSystem fs = FileSystem.get(new Configuration());
+        InputStream is = fs.open(new Path((String) properties.get("ingester.schemafile")));
+
+        schema = new Schema.Parser().parse(is);
+        is.close();
 
         topic = (String) properties.get("ingester.topic");
 
@@ -89,7 +96,7 @@ public class Ingester {
 
     private int count;
 
-    public void run() {
+    public void run(Context context) {
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
         topicCountMap.put(topic, new Integer(1));
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
@@ -105,6 +112,9 @@ public class Ingester {
                 count++;
                 if (count % 100000 == 0) {
                     System.out.println("Read " + count + " events into Parquet.");
+                }
+                if(context != null) {
+                    context.getCounter("Ingest", "Events read").increment(1);
                 }
             } catch (Exception e) {
                 e.printStackTrace();

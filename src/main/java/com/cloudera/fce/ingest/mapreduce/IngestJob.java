@@ -1,5 +1,6 @@
 package com.cloudera.fce.ingest.mapreduce;
 
+import kafka.utils.ZkUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -31,7 +32,12 @@ public class IngestJob implements Tool {
         conf.set("ingester.idleTimeoutInSeconds", args[6]);
         conf.set("ingester.tasks", args[7]);
 
-//        ZkUtils.maybeDeletePath(properties.get("zookeeper.connect") + "", "/consumers/" + properties.get("group.id"));
+        if(args[8].equals("true")) {
+            ZkUtils.maybeDeletePath(conf.get("zookeeper.connect") + "", "/consumers/" + conf.get("group.id"));
+        }
+
+        conf.set("mapreduce.map.java.opts", "-Xmx8G");
+        conf.set("mapreduce.map.memory.mb", "7500   ");
 
         Job job = Job.getInstance(conf, "Kafka Ingester");
 
