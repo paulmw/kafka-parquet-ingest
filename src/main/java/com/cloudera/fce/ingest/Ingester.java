@@ -37,9 +37,7 @@ public class Ingester {
 
         Properties properties = new Properties();
         properties.put("zookeeper.connect", zookeepers);
-        properties.put("group.id",groupId);
-        properties.put("auto.offset.reset", "smallest");
-        properties.put("auto.commit.enable", "false");
+        properties.put("group.id", groupId);
         properties.put("ingester.topic", topic);
         properties.put("ingester.schemafile", schemaFile);
         properties.put("ingester.path", path);
@@ -54,7 +52,8 @@ public class Ingester {
 
     public Ingester(Properties properties) throws Exception {
 
-//        ZkUtils.maybeDeletePath(properties.get("zookeeper.connect") + "", "/consumers/" + properties.get("group.id"));
+        properties.put("auto.offset.reset", "smallest");
+        properties.put("auto.commit.enable", "false");
 
         ConsumerConfig consumerConfig = new ConsumerConfig(properties);
         consumer = Consumer.createJavaConsumerConnector(consumerConfig);
@@ -79,7 +78,7 @@ public class Ingester {
 
     }
 
-    public GenericRecord deserialise(byte [] b) throws Exception {
+    public GenericRecord deserialise(byte[] b) throws Exception {
         GenericRecord record = null;
         DatumReader<GenericRecord> datumReader = new GenericDatumReader<GenericRecord>(schema);
         BinaryDecoder d = null;
@@ -94,17 +93,17 @@ public class Ingester {
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
         topicCountMap.put(topic, new Integer(1));
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-        KafkaStream<byte[], byte[]> stream =  consumerMap.get(topic).get(0);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(topic).get(0);
 
         ConsumerIterator<byte[], byte[]> it = stream.iterator();
         count = 0;
-        while(it.hasNext()) {
+        while (it.hasNext()) {
             byte[] message = it.next().message();
             try {
                 GenericRecord record = deserialise(message);
                 writer.write(record);
                 count++;
-                if(count % 100000 == 0) {
+                if (count % 100000 == 0) {
                     System.out.println("Read " + count + " events into Parquet.");
                 }
             } catch (Exception e) {
