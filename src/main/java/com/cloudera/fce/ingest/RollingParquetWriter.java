@@ -2,6 +2,7 @@ package com.cloudera.fce.ingest;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
 import parquet.avro.AvroSchemaConverter;
@@ -26,6 +27,7 @@ public abstract class RollingParquetWriter {
     private ParquetWriter writer;
 
     private Path filePath;
+    private FileSystem fs;
 
     private HdfsDataOutputStream out;
     private long lastPosition = -1;
@@ -35,12 +37,13 @@ public abstract class RollingParquetWriter {
     private Watchdog watchdog;
     private Thread watchdogThread;
 
-    public RollingParquetWriter(Path path, Schema schema, int blockSize, int pageSize, long timeoutInMillis) {
+    public RollingParquetWriter(FileSystem fs, Path path, Schema schema, int blockSize, int pageSize, long timeoutInMillis) {
         this.path = path;
         this.schema = schema;
         this.blockSize = blockSize;
         this.pageSize = pageSize;
         this.timeoutInMillis = timeoutInMillis;
+        this.fs = fs;
     }
 
     public abstract void onRoll();
@@ -119,15 +122,18 @@ public abstract class RollingParquetWriter {
     }
 
     public void close() throws Exception {
-        writer.close();
-        System.out.println("Closing " + filePath);
-        writer = null;
-        out = null;
-        lastPosition = -1;
-        lastWriteTime = -1;
-        onRoll();
-        watchdog.stop();
-        watchdogThread.interrupt();
+        if(writer != null) {
+            writer.close();
+            System.out.println("Closing " + filePath);
+            fs.rename(path, new Path(path.toString().replace(".tmp", "")));
+            writer = null;
+            out = null;
+            lastPosition = -1;
+            lastWriteTime = -1;
+            onRoll();
+            watchdog.stop();
+            watchdogThread.interrupt();
+        }
     }
 
     private <T> void searchForInstanceOfType(Class<T> t, Object o, List<T> candidates) throws Exception {

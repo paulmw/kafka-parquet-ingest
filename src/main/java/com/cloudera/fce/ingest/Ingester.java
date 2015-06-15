@@ -5,6 +5,9 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+import kafka.javaapi.consumer.ConsumerRebalanceListener;
+import kafka.javaapi.consumer.ZookeeperConsumerConnector;
+import kafka.utils.ZkUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -17,10 +20,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Mapper.Context;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class Ingester {
 
@@ -36,7 +36,8 @@ public class Ingester {
         String topic = args[3];
         String path = args[4];
         String blocksize = args[5];
-        String idleTimeoutInSeconds = args[6];
+        String pagesize = args[6];
+        String idleTimeoutInSeconds = args[7];
 
         Properties properties = new Properties();
         properties.put("zookeeper.connect", zookeepers);
@@ -45,9 +46,14 @@ public class Ingester {
         properties.put("ingester.schemafile", schemaFile);
         properties.put("ingester.path", path);
         properties.put("ingester.blocksize", blocksize);
+        properties.put("ingester.pagesize", pagesize);
         properties.put("ingester.idleTimeoutInSeconds", idleTimeoutInSeconds);
 
         System.out.println(properties);
+
+        if(args[8].equals("true")) {
+            ZkUtils.maybeDeletePath(properties.get("zookeeper.connect") + "", "/consumers/" + properties.get("group.id"));
+        }
 
         Ingester ingester = new Ingester(properties);
         ingester.run(null);
@@ -61,6 +67,20 @@ public class Ingester {
         ConsumerConfig consumerConfig = new ConsumerConfig(properties);
         consumer = Consumer.createJavaConsumerConnector(consumerConfig);
 
+        ZookeeperConsumerConnector zkcc = (ZookeeperConsumerConnector) consumer;
+        zkcc.setConsumerRebalanceListener(new ConsumerRebalanceListener() {
+            @Override
+            public void beforeReleasingPartitions(Map<String, Set<Integer>> partitionOwnership) {
+                try {
+                    System.out.println("Rebalancing - closing down.");
+                    writer.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+        });
+
         FileSystem fs = FileSystem.get(new Configuration());
         InputStream is = fs.open(new Path((String) properties.get("ingester.schemafile")));
 
@@ -72,10 +92,10 @@ public class Ingester {
         Path path = new Path((String) properties.get("ingester.path"));
 
         int blockSize = Integer.parseInt(properties.get("ingester.blocksize").toString());
-        int pageSize = 1 * 1000 * 1000;
+        int pageSize = Integer.parseInt(properties.get("ingester.pagesize").toString());
         long timeoutInMillis = Integer.parseInt(properties.get("ingester.idleTimeoutInSeconds").toString()) * 1000;
 
-        writer = new RollingParquetWriter(path, schema, blockSize, pageSize, timeoutInMillis) {
+        writer = new RollingParquetWriter(fs, path, schema, blockSize, pageSize, timeoutInMillis) {
             @Override
             public void onRoll() {
                 consumer.commitOffsets();

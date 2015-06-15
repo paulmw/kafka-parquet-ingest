@@ -29,10 +29,11 @@ public class IngestJob implements Tool {
         conf.set("ingester.topic", args[3]);
         conf.set("ingester.path", args[4]);
         conf.set("ingester.blocksize", args[5]);
-        conf.set("ingester.idleTimeoutInSeconds", args[6]);
-        conf.set("ingester.tasks", args[7]);
+        conf.set("ingester.pagesize", args[6]);
+        conf.set("ingester.idleTimeoutInSeconds", args[7]);
+        conf.set("ingester.tasks", args[8]);
 
-        if(args[8].equals("true")) {
+        if(args[9].equals("true")) {
             ZkUtils.maybeDeletePath(conf.get("zookeeper.connect") + "", "/consumers/" + conf.get("group.id"));
         }
 
