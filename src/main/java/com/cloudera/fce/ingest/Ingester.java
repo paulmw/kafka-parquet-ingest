@@ -72,9 +72,14 @@ public class Ingester {
             @Override
             public void beforeReleasingPartitions(Map<String, Set<Integer>> partitionOwnership) {
                 try {
-                    System.out.println("Rebalancing - closing down.");
+                    System.out.println("Rebalancing.");
+                    if(context != null) {
+                        context.setStatus("Rebalancing.");
+                    }
                     writer.close();
                 } catch (Exception e) {
+                    context.setStatus(e.toString());
+                    System.exit(1);
                     e.printStackTrace();
                 }
             }

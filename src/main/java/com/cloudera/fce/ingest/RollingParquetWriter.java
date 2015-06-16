@@ -89,7 +89,7 @@ public abstract class RollingParquetWriter {
         if (writer == null) {
             MessageType parquetSchema = new AvroSchemaConverter().convert(schema);
             AvroWriteSupport writeSupport = new AvroWriteSupport(parquetSchema, schema);
-            filePath = new Path(path.toString() + "/" + UUID.randomUUID().toString() + ".parquet");
+            filePath = new Path(path.toString() + "/" + UUID.randomUUID().toString() + ".parquet.tmp");
             System.out.println("Writing to " + filePath);
             writer = new ParquetWriter(filePath, writeSupport, CompressionCodecName.SNAPPY, blockSize, pageSize, true, true);
 
@@ -123,16 +123,17 @@ public abstract class RollingParquetWriter {
 
     public void close() throws Exception {
         if(writer != null) {
-            writer.close();
+            watchdog.stop();
             System.out.println("Closing " + filePath);
-            fs.rename(path, new Path(path.toString().replace(".tmp", "")));
+            writer.close();
+            onRoll();
+            Path newPath = new Path(filePath.toString().substring(0, filePath.toString().length() - 4));
+            fs.rename(filePath, newPath);
             writer = null;
             out = null;
             lastPosition = -1;
             lastWriteTime = -1;
-            onRoll();
-            watchdog.stop();
-            watchdogThread.interrupt();
+//            watchdogThread.interrupt();
         }
     }
 

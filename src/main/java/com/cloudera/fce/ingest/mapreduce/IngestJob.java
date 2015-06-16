@@ -41,6 +41,8 @@ public class IngestJob implements Tool {
         conf.set("mapreduce.map.memory.mb", "8500");
         conf.set("mapreduce.task.timeout", "0");
 
+        conf.set("zookeeper.session.timeout.ms", "30000");
+
         Job job = Job.getInstance(conf, "Kafka Ingester");
 
         job.setMapperClass(IngestMapper.class);
